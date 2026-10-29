@@ -8,8 +8,8 @@ compatibility_date = "2026-10-01"
 #   ACCESS_AUD: the "Application Audience (AUD) Tag" of the Access application
 # While these are empty the API refuses every request (fails closed).
 [vars]
-ACCESS_TEAM_DOMAIN = ""
-ACCESS_AUD = ""
+ACCESS_TEAM_DOMAIN = "https://empty-pine-859f.cloudflareaccess.com"
+ACCESS_AUD = "0eacc3233f7c84c85827d4af1c1a2ad53f88ed76d44329cb2a1152c7e87b40aa"
 
 [[d1_databases]]
 binding = "DB"
