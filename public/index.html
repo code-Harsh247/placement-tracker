@@ -47,7 +47,7 @@ body {
 button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
 [hidden] { display: none !important; }
-.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .page { padding: 56px 24px 80px; }
 @media (max-width: 640px) { .page { padding: 32px 16px 64px; } }
@@ -90,7 +90,7 @@ section h2 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.01
 .sec { display: flex; flex-direction: column; gap: 8px; }
 .sec.pending { margin-top: -4px; }
 .sec.done { padding-top: 16px; }
-.table-box { overflow-x: auto; }
+.table-box { overflow-x: auto; position: relative; }
 table { width: 100%; min-width: 900px; border-collapse: collapse; font-size: 14px; table-layout: fixed; }
 /* Fixed column widths so the pending and completed tables line up */
 th.c-co { width: 19%; } th.num { width: 9%; } th.c-loc { width: 14%; } th.c-tag { width: 17%; }
@@ -155,6 +155,45 @@ legend { padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 500; colo
 .dot-dilemma { background: var(--dilemma-dot); }
 .error { margin: -4px 0 0; font-size: 13px; color: var(--error); }
 .dlg-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding-top: 4px; }
+
+.sec, .table-box { min-width: 0; }
+
+/* ---------- phones: controls stack, rows become cards ---------- */
+@media (max-width: 720px) {
+  header .btn.primary { flex: 1 1 auto; justify-content: center; }
+  .header-actions { flex: 1 1 100%; }
+
+  .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex: none; }
+
+  .search { flex-basis: 100%; }
+  .controls > label:not(.search) { flex: 1 1 0; min-width: 0; }
+  .controls select.ctl { width: 100%; min-width: 0 !important; }
+  #btnReset { flex: 1 1 100%; justify-content: center; }
+
+  .table-box { overflow: visible; }
+  table, tbody { display: block; min-width: 0; }
+  thead { display: none; }
+  tr.row {
+    display: grid; grid-template-columns: 44px auto auto 1fr 44px;
+    grid-template-areas: "check co co co del" "check role role role del" ". ctc base loc ." ". tag tag tag .";
+    column-gap: 12px; row-gap: 4px; padding: 12px 0 14px; border-bottom: 1px solid var(--row-line);
+  }
+  tr.row td { display: block; padding: 0; border: none; background: none !important; min-width: 0; }
+  tr.row:hover td { background: none; }
+  td.c-check { grid-area: check; width: auto; align-self: start; }
+  td.c-check .check { margin: -10px 0 0 -13px; }
+  td.c-co { grid-area: co; font-size: 15px; padding-top: 1px; }
+  td.c-role { grid-area: role; }
+  td.ctc { grid-area: ctc; text-align: left; margin-top: 6px; }
+  td.c-base { grid-area: base; text-align: left; margin-top: 6px; }
+  td.c-loc { grid-area: loc; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  td.c-tag { grid-area: tag; margin-top: 6px; }
+  td.c-act { grid-area: del; width: auto; align-self: start; margin-top: -6px; }
+  td.num::before { content: attr(data-label) " "; font-family: Geist, ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif; font-size: 12px; color: var(--subtle); }
+  .row .del { opacity: 1; }
+}
 
 #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; }
 #toast.show { opacity: 1; }
@@ -404,11 +443,11 @@ function table(list) {
     return `<tr class="row">
       <td class="c-check"><label class="check"><input type="checkbox" data-toggle="${esc(r.id)}"${r.testDone ? ' checked' : ''} aria-label="${r.testDone ? 'Mark test not done for ' : 'Mark test done for '}${esc(r.company)}"></label></td>
       <td class="c-co"><button class="co-btn" data-edit="${esc(r.id)}" title="Edit">${esc(r.company)}</button></td>
-      <td>${esc(r.role)}</td>
-      <td class="num ctc">${fmt(r.ctc)}</td>
-      <td class="num">${fmt(r.base)}</td>
+      <td class="c-role">${esc(r.role)}</td>
+      <td class="num ctc" data-label="CTC">${fmt(r.ctc)}</td>
+      <td class="num c-base" data-label="Base">${fmt(r.base)}</td>
       <td class="c-loc">${esc(r.location) || '—'}</td>
-      <td><span class="tag tag-${t.key}">${esc(t.label)}</span></td>
+      <td class="c-tag"><span class="tag tag-${t.key}">${esc(t.label)}</span></td>
       <td class="c-act"><button class="icon-btn del" data-remove="${esc(r.id)}" aria-label="Remove ${esc(r.company)}">${ICON_TRASH}</button></td>
     </tr>`;
   }).join('');
