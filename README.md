@@ -12,7 +12,7 @@ Everything runs on Cloudflare's free tier:
 - **Pages Functions** provide the API (`functions/api/`)
   - `GET /api/applications`, `POST /api/applications`
   - `PATCH /api/applications/:id`, `DELETE /api/applications/:id`
-  - `POST /api/import` replaces all applications in one transaction (Restore and sample data)
+  - `POST /api/import` replaces all applications in one transaction (used by "Try with sample data")
 - **D1** (SQLite) stores the data; the schema is in `migrations/`
 - **Cloudflare Access** puts an email one-time-code sign-in in front of the whole site. `functions/api/_middleware.js` also verifies the Access token on every API call and refuses requests when it's missing or invalid.
 
@@ -35,4 +35,10 @@ npm run deploy -- --branch main
 
 ## Backups
 
-Use **Backup** in the app to download a JSON copy of your applications, and **Restore** to load one back. D1 also keeps 30 days of point-in-time recovery (`wrangler d1 time-travel`).
+D1 keeps 30 days of point-in-time recovery. To roll the database back:
+
+```bash
+npx wrangler d1 time-travel restore placement-tracker --timestamp=<RFC 3339 time>
+```
+
+To export a copy: `npx wrangler d1 export placement-tracker --remote --output=backup.sql`

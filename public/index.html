@@ -170,13 +170,10 @@ legend { padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 500; colo
       <p id="summary"></p>
     </div>
     <div class="header-actions">
-      <button class="btn ghost" id="btnExport" title="Download a backup of all your data">Backup</button>
-      <button class="btn ghost" id="btnImport" title="Restore from a backup file">Restore</button>
       <button class="btn primary" id="btnAdd">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
         Add application
       </button>
-      <input type="file" id="fileImport" accept=".json,application/json" hidden>
     </div>
   </header>
 
@@ -294,17 +291,6 @@ async function api(method, path, body) {
   if (res.status === 401) throw new Error('Your sign-in expired. Reload the page to sign in again.');
   if (!res.ok) throw new Error(data.error || `Something went wrong (${res.status})`);
   return data;
-}
-
-// Accepts backups from this version ({ rows }) and from the first offline
-// version ({ apps }), which had statuses instead of a test checkbox.
-function rowsFromBackup(data) {
-  if (Array.isArray(data?.rows)) return data.rows;
-  if (Array.isArray(data?.apps)) return data.apps.map(a => ({
-    company: a.company, role: a.role || '—', ctc: a.ctc, base: '', location: a.location || '',
-    tag: 'lock', testDone: ['Interview', 'Offer', 'Rejected'].includes(a.status), createdAt: a.createdAt,
-  }));
-  return null;
 }
 
 async function loadRows() {
@@ -486,29 +472,6 @@ $('#form').addEventListener('submit', async e => {
 });
 $('#form').addEventListener('input', () => { $('#error').hidden = true; });
 $('#btnClose').onclick = $('#btnCancel').onclick = () => $('#dlg').close();
-
-// ---------- backup / restore ----------
-$('#btnExport').onclick = () => {
-  const url = URL.createObjectURL(new Blob([JSON.stringify({ rows }, null, 2)], { type: 'application/json' }));
-  const link = Object.assign(document.createElement('a'), { href: url, download: `placement-tracker-backup-${new Date().toISOString().slice(0, 10)}.json` });
-  document.body.appendChild(link); link.click(); link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-  toast('Backup downloaded');
-};
-$('#btnImport').onclick = () => $('#fileImport').click();
-$('#fileImport').onchange = async e => {
-  const file = e.target.files[0];
-  e.target.value = '';
-  if (!file) return;
-  let incoming;
-  try { incoming = rowsFromBackup(JSON.parse(await file.text())); } catch (err) { incoming = null; }
-  if (!incoming) { alert('That file is not a valid Placement Tracker backup.'); return; }
-  if (!confirm(`Replace your current ${rows.length} applications with ${incoming.length} from this backup?`)) return;
-  try {
-    rows = (await api('POST', 'import', { rows: incoming })).rows;
-    render(); toast('Backup restored');
-  } catch (err) { alert(err.message); }
-};
 
 // ---------- sample data ----------
 async function loadSample() {
