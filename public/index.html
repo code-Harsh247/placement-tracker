@@ -113,6 +113,8 @@ th.c-act, td.c-act { width: 44px; padding: 4px 0; text-align: right; }
 .co-btn { all: unset; cursor: pointer; border-radius: 2px; }
 .co-btn:hover { text-decoration: underline; text-underline-offset: 3px; }
 .co-btn:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+#doneBox .co-btn { text-decoration: line-through; text-decoration-thickness: 1.5px; }
+#doneBox .co-btn:hover { text-decoration: line-through underline; }
 .row .del { opacity: 0; }
 .row:hover .del, .row:focus-within .del { opacity: 1; }
 @media (hover: none) { .row .del { opacity: 1; } }
