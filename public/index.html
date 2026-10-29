@@ -258,8 +258,6 @@ legend { padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 500; colo
 <div id="toast"></div>
 
 <script>
-const KEY = 'placement-tracker-v2';
-const OLD_KEY = 'placement-tracker-v1';
 const TAGS = [
   { key: 'lock', label: 'Lock In' },
   { key: 'chill', label: 'Low Key Chill' },
@@ -269,7 +267,8 @@ const TAG_ORDER = { lock: 0, chill: 1, dilemma: 2 };
 const SORT_COLS = [['company', 'Company', 'c-co'], ['role', 'Role', ''], ['ctc', 'CTC', 'num'], ['base', 'Base', 'num'], ['location', 'Location', 'c-loc'], ['tag', 'Tag', 'c-tag']];
 const ICON_TRASH = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
 
-let rows = load();
+let rows = [];
+let status = 'loading'; // loading | ready | error
 const view = { query: '', tag: 'all', loc: 'all', sortKey: 'recent', sortDir: 'desc' };
 let editingId = null;
 let formTag = 'lock';
@@ -278,29 +277,45 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const isBlank = n => n === null || n === undefined || n === '' || isNaN(n);
 const fmt = n => isBlank(n) ? '—' : (Math.round(Number(n) * 10) / 10).toFixed(1) + ' L';
-const newId = () => crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
-
-function load() {
+// ---------- API ----------
+async function api(method, path, body) {
+  let res;
   try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) { const s = JSON.parse(raw); if (Array.isArray(s.rows)) return s.rows; }
-    // Carry over companies from the previous version of this tracker
-    const old = localStorage.getItem(OLD_KEY);
-    if (old) {
-      const s = JSON.parse(old);
-      if (Array.isArray(s.apps)) return s.apps.map(a => ({
-        id: a.id || newId(), company: a.company || '', role: a.role || '',
-        ctc: isBlank(a.ctc) ? '' : Number(a.ctc), base: '', location: a.location || '',
-        tag: 'lock', testDone: ['Interview', 'Offer', 'Rejected'].includes(a.status), createdAt: a.createdAt || Date.now(),
-      }));
-    }
-  } catch (e) { /* fall through to empty state */ }
-  return [];
+    res = await fetch('/api/' + path, {
+      method,
+      headers: body ? { 'content-type': 'application/json' } : {},
+      body: body ? JSON.stringify(body) : undefined,
+      credentials: 'same-origin',
+    });
+  } catch (e) {
+    throw new Error('Could not reach the server. Check your connection.');
+  }
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401) throw new Error('Your sign-in expired. Reload the page to sign in again.');
+  if (!res.ok) throw new Error(data.error || `Something went wrong (${res.status})`);
+  return data;
 }
 
-function save() {
-  try { localStorage.setItem(KEY, JSON.stringify({ rows })); }
-  catch (e) { toast('Could not save in this browser — use Backup to keep your data'); }
+// Accepts backups from this version ({ rows }) and from the first offline
+// version ({ apps }), which had statuses instead of a test checkbox.
+function rowsFromBackup(data) {
+  if (Array.isArray(data?.rows)) return data.rows;
+  if (Array.isArray(data?.apps)) return data.apps.map(a => ({
+    company: a.company, role: a.role || '—', ctc: a.ctc, base: '', location: a.location || '',
+    tag: 'lock', testDone: ['Interview', 'Offer', 'Rejected'].includes(a.status), createdAt: a.createdAt,
+  }));
+  return null;
+}
+
+async function loadRows() {
+  try {
+    rows = (await api('GET', 'applications')).rows;
+    status = 'ready';
+  } catch (e) {
+    status = 'error';
+    toast(e.message);
+  }
+  render();
 }
 
 function toast(msg) {
@@ -351,8 +366,9 @@ function render() {
   const anyPending = all.some(r => !r.testDone);
   const anyDone = all.some(r => r.testDone);
 
-  $('#summary').textContent = all.length === 0
-    ? 'Nothing logged yet.'
+  $('#summary').textContent = status === 'loading' ? 'Loading…'
+    : status === 'error' ? 'Could not load your applications.'
+    : all.length === 0 ? 'Nothing logged yet.'
     : `${all.length} ${all.length === 1 ? 'company' : 'companies'} applied to this season`;
 
   const counts = { all: all.length, lock: 0, chill: 0, dilemma: 0 };
@@ -374,12 +390,16 @@ function render() {
 
   let pendingEmpty = '';
   if (!pending.length) {
-    const [title, body] = all.length === 0
+    const [title, body] = status === 'loading'
+      ? ['Loading…', 'Fetching your applications.']
+      : status === 'error'
+      ? ['Could not load your applications', 'Reload the page to try again.']
+      : all.length === 0
       ? ['No applications yet', 'Add your first application to start tracking.']
       : filtersOn && anyPending
         ? ['No matches', 'Try another search or reset the filters.']
         : ['No pending tests', 'Every test so far is done.'];
-    pendingEmpty = `<div class="empty"><p class="title">${title}</p><p class="body">${body}</p>${all.length === 0 ? '<button class="link-btn" data-action="sample">Try with sample data</button>' : ''}</div>`;
+    pendingEmpty = `<div class="empty"><p class="title">${title}</p><p class="body">${body}</p>${status === 'ready' && all.length === 0 ? '<button class="link-btn" data-action="sample">Try with sample data</button>' : ''}</div>`;
   }
   $('#pendingBox').innerHTML = table(pending) + pendingEmpty;
 
@@ -430,27 +450,39 @@ function openForm(id) {
   f.company.focus();
 }
 
-$('#form').addEventListener('submit', e => {
+function showFormError(msg) { $('#error').textContent = msg; $('#error').hidden = false; }
+
+$('#form').addEventListener('submit', async e => {
   e.preventDefault();
   const f = e.target;
   const company = f.company.value.trim(), role = f.role.value.trim();
-  if (!company || !role) { $('#error').textContent = 'Company and role are required.'; $('#error').hidden = false; return; }
+  if (!company || !role) { showFormError('Company and role are required.'); return; }
   const data = {
     company, role,
     ctc: f.ctc.value === '' ? '' : Number(f.ctc.value),
     base: f.base.value === '' ? '' : Number(f.base.value),
     location: f.location.value.trim(), tag: formTag,
   };
-  if (editingId) {
-    Object.assign(rows.find(x => x.id === editingId), data);
-    toast('Saved');
-  } else {
-    rows.push({ id: newId(), ...data, testDone: false, createdAt: Date.now() });
-    Object.assign(view, { sortKey: 'recent', sortDir: 'desc' });
-    toast(`Added ${company}`);
+  const saveBtn = f.querySelector('[type=submit]');
+  saveBtn.disabled = true;
+  try {
+    if (editingId) {
+      const { row } = await api('PATCH', 'applications/' + encodeURIComponent(editingId), data);
+      rows = rows.map(x => x.id === row.id ? row : x);
+      toast('Saved');
+    } else {
+      const { row } = await api('POST', 'applications', data);
+      rows.push(row);
+      Object.assign(view, { sortKey: 'recent', sortDir: 'desc' });
+      toast(`Added ${company}`);
+    }
+    render();
+    $('#dlg').close();
+  } catch (err) {
+    showFormError(err.message);
+  } finally {
+    saveBtn.disabled = false;
   }
-  save(); render();
-  $('#dlg').close();
 });
 $('#form').addEventListener('input', () => { $('#error').hidden = true; });
 $('#btnClose').onclick = $('#btnCancel').onclick = () => $('#dlg').close();
@@ -468,26 +500,30 @@ $('#fileImport').onchange = async e => {
   const file = e.target.files[0];
   e.target.value = '';
   if (!file) return;
+  let incoming;
+  try { incoming = rowsFromBackup(JSON.parse(await file.text())); } catch (err) { incoming = null; }
+  if (!incoming) { alert('That file is not a valid Placement Tracker backup.'); return; }
+  if (!confirm(`Replace your current ${rows.length} applications with ${incoming.length} from this backup?`)) return;
   try {
-    const data = JSON.parse(await file.text());
-    if (!Array.isArray(data.rows)) throw new Error('bad file');
-    if (!confirm(`Replace your current ${rows.length} applications with ${data.rows.length} from this backup?`)) return;
-    rows = data.rows;
-    save(); render(); toast('Backup restored');
-  } catch (err) { alert('That file is not a valid Placement Tracker backup.'); }
+    rows = (await api('POST', 'import', { rows: incoming })).rows;
+    render(); toast('Backup restored');
+  } catch (err) { alert(err.message); }
 };
 
 // ---------- sample data ----------
-function loadSample() {
-  rows = [
+async function loadSample() {
+  const sample = [
     { company: 'Northwind Labs', role: 'SDE 1', ctc: 32, base: 20, location: 'Bengaluru', tag: 'lock' },
     { company: 'Kestrel AI', role: 'ML Engineer', ctc: 28, base: 22, location: 'Hyderabad', tag: 'dilemma' },
     { company: 'Orbit Payments', role: 'Associate Product Manager', ctc: 24, base: 18, location: 'Mumbai', tag: 'chill' },
     { company: 'Bluefin Systems', role: 'Software Engineer', ctc: 45, base: 26, location: 'Bengaluru', tag: 'lock', testDone: true },
     { company: 'Acme Analytics', role: 'Data Analyst', ctc: 14, base: 12, location: 'Gurugram', tag: 'chill', testDone: true },
     { company: 'Lattice Robotics', role: 'Embedded SDE', ctc: 20, base: 16, location: 'Pune', tag: 'dilemma' },
-  ].map((r, i) => ({ id: 'sample-' + i, testDone: false, createdAt: Date.now(), ...r }));
-  save(); render(); toast('Sample data loaded — delete these when you start');
+  ];
+  try {
+    rows = (await api('POST', 'import', { rows: sample })).rows;
+    render(); toast('Sample data loaded — delete these when you start');
+  } catch (err) { toast(err.message); }
 }
 
 // ---------- wiring ----------
@@ -497,7 +533,7 @@ $('#loc').addEventListener('change', e => { view.loc = e.target.value; render();
 $('#sort').addEventListener('change', e => { [view.sortKey, view.sortDir] = e.target.value.split('-'); render(); });
 $('#btnReset').onclick = () => { Object.assign(view, { query: '', tag: 'all', loc: 'all' }); $('#q').value = ''; render(); };
 
-document.addEventListener('click', e => {
+document.addEventListener('click', async e => {
   const el = e.target.closest('[data-tab],[data-sort],[data-edit],[data-remove],[data-seg],[data-action]');
   if (!el) return;
   const d = el.dataset;
@@ -510,22 +546,32 @@ document.addEventListener('click', e => {
   else if (d.edit) openForm(d.edit);
   else if (d.remove) {
     const r = rows.find(x => x.id === d.remove);
-    if (r && confirm(`Remove ${r.company}? This can't be undone.`)) { rows = rows.filter(x => x.id !== d.remove); save(); render(); toast('Removed'); }
+    if (r && confirm(`Remove ${r.company}? This can't be undone.`)) {
+      try {
+        await api('DELETE', 'applications/' + encodeURIComponent(r.id));
+        rows = rows.filter(x => x.id !== r.id); render(); toast('Removed');
+      } catch (err) { toast(err.message); }
+    }
   }
   else if (d.seg) { formTag = d.seg; renderSegs(); }
   else if (d.action === 'sample') loadSample();
 });
 
-document.addEventListener('change', e => {
+document.addEventListener('change', async e => {
   const id = e.target.dataset?.toggle;
   if (!id) return;
-  const r = rows.find(x => x.id === id);
-  r.testDone = e.target.checked;
-  save(); render();
-  toast(r.testDone ? `${r.company} → Test completed` : `${r.company} → Test pending`);
+  const checkbox = e.target;
+  checkbox.disabled = true;
+  try {
+    const { row } = await api('PATCH', 'applications/' + encodeURIComponent(id), { testDone: checkbox.checked });
+    rows = rows.map(x => x.id === row.id ? row : x);
+    toast(row.testDone ? `${row.company} → Test completed` : `${row.company} → Test pending`);
+  } catch (err) { toast(err.message); }
+  render();
 });
 
 render();
+loadRows();
 </script>
 </body>
 </html>
