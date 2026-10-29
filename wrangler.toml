@@ -14,5 +14,5 @@ ACCESS_AUD = ""
 [[d1_databases]]
 binding = "DB"
 database_name = "placement-tracker"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "8900bfe3-7fd8-43d6-aa09-a09d04ef904c"
 migrations_dir = "migrations"
