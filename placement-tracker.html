@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Placement Tracker</title>
+<style>
+:root {
+  --accent: #171717; --accent-text: #ffffff;
+  --bg: #ffffff; --surface: #ffffff; --hover: #fafafa; --hover-2: #f5f5f5;
+  --border: #e5e5e5; --border-strong: #d4d4d4; --row-line: #f0f0f0;
+  --text: #171717; --text-2: #404040; --muted: #525252; --subtle: #737373; --faint: #a3a3a3;
+  --error: #b91c1c; --backdrop: rgba(0,0,0,.24); --shadow: 0 16px 40px rgba(0,0,0,.12);
+  --lock-bg: #eff4ff; --lock-border: #cbd9fe; --lock-text: #1d4ed8; --lock-dot: #2563eb;
+  --chill-bg: #ecfdf5; --chill-border: #b4e8d0; --chill-text: #047857; --chill-dot: #0d9488;
+  --dilemma-bg: #fff7e8; --dilemma-border: #f8d9a6; --dilemma-text: #9a4508; --dilemma-dot: #d97706;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --accent: #f5f5f5; --accent-text: #0a0a0a;
+    --bg: #0a0a0a; --surface: #141414; --hover: #171717; --hover-2: #1f1f1f;
+    --border: #2a2a2a; --border-strong: #3a3a3a; --row-line: #1f1f1f;
+    --text: #f5f5f5; --text-2: #d4d4d4; --muted: #b5b5b5; --subtle: #a3a3a3; --faint: #8a8a8a;
+    --error: #f87171; --backdrop: rgba(0,0,0,.6); --shadow: 0 16px 40px rgba(0,0,0,.5);
+    --lock-bg: #172036; --lock-border: #2b3f6e; --lock-text: #93b4ff; --lock-dot: #5b8cff;
+    --chill-bg: #0f2a22; --chill-border: #1e5142; --chill-text: #6ee7b7; --chill-dot: #2dd4bf;
+    --dilemma-bg: #2e2110; --dilemma-border: #5a3f17; --dilemma-text: #fbbf6a; --dilemma-dot: #f59e0b;
+  }
+}
+:root[data-theme="dark"] {
+  --accent: #f5f5f5; --accent-text: #0a0a0a;
+  --bg: #0a0a0a; --surface: #141414; --hover: #171717; --hover-2: #1f1f1f;
+  --border: #2a2a2a; --border-strong: #3a3a3a; --row-line: #1f1f1f;
+  --text: #f5f5f5; --text-2: #d4d4d4; --muted: #b5b5b5; --subtle: #a3a3a3; --faint: #8a8a8a;
+  --error: #f87171; --backdrop: rgba(0,0,0,.6); --shadow: 0 16px 40px rgba(0,0,0,.5);
+  --lock-bg: #172036; --lock-border: #2b3f6e; --lock-text: #93b4ff; --lock-dot: #5b8cff;
+  --chill-bg: #0f2a22; --chill-border: #1e5142; --chill-text: #6ee7b7; --chill-dot: #2dd4bf;
+  --dilemma-bg: #2e2110; --dilemma-border: #5a3f17; --dilemma-text: #fbbf6a; --dilemma-dot: #f59e0b;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.45 Geist, ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.mono { font-family: "Geist Mono", ui-monospace, "Cascadia Mono", Consolas, monospace; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+[hidden] { display: none !important; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.page { padding: 56px 24px 80px; }
+@media (max-width: 640px) { .page { padding: 32px 16px 64px; } }
+.wrap { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 32px; }
+
+header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+header h1 { margin: 0; font-size: 24px; line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; }
+header p { margin: 4px 0 0; color: var(--subtle); }
+.header-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.btn { height: 44px; padding: 0 16px; border-radius: 8px; font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; }
+.primary { background: var(--accent); color: var(--accent-text); border: 1px solid var(--accent); }
+.primary:hover { opacity: .88; }
+.ghost { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+.ghost:hover { background: var(--hover); }
+.icon-btn { width: 36px; height: 36px; border: none; background: transparent; border-radius: 6px; color: var(--faint); display: inline-flex; align-items: center; justify-content: center; }
+.icon-btn:hover { background: var(--hover-2); color: var(--text); }
+
+.filters { display: flex; flex-direction: column; gap: 16px; }
+.tabs { display: flex; flex-wrap: wrap; column-gap: 24px; border-bottom: 1px solid var(--border); }
+.tab { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; height: 44px; font-size: 14px; font-weight: 500; color: var(--subtle); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--text); border-bottom-color: var(--text); }
+.tab:focus-visible, .th-btn:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.count { font-family: "Geist Mono", ui-monospace, Consolas, monospace; font-size: 12px; color: var(--faint); }
+.tab.active .count { color: var(--muted); }
+
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ctl { height: 44px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 14px; padding: 0 12px; outline: none; width: 100%; }
+.ctl::placeholder { color: var(--faint); }
+.ctl:hover { border-color: var(--border-strong); }
+.ctl:focus { border-color: var(--text); }
+.search { position: relative; flex: 1 1 260px; display: flex; align-items: center; }
+.search svg { position: absolute; left: 12px; }
+.search .ctl { padding-left: 36px; }
+.controls select.ctl { width: auto; }
+
+section h2 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+.sec-head { display: flex; align-items: baseline; gap: 8px; }
+.sec { display: flex; flex-direction: column; gap: 8px; }
+.sec.pending { margin-top: -4px; }
+.sec.done { padding-top: 16px; }
+.table-box { overflow-x: auto; }
+table { width: 100%; min-width: 900px; border-collapse: collapse; font-size: 14px; table-layout: fixed; }
+/* Fixed column widths so the pending and completed tables line up */
+th.c-co { width: 19%; } th.num { width: 9%; } th.c-loc { width: 14%; } th.c-tag { width: 17%; }
+th { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); font-weight: 500; font-size: 13px; color: var(--subtle); }
+td { padding: 14px 12px; border-bottom: 1px solid var(--row-line); color: var(--muted); }
+tr.row:hover td { background: var(--hover); }
+th.c-check, td.c-check { width: 56px; padding: 0 4px 0 0; }
+th.c-check { padding: 10px 4px 10px 0; }
+th.c-co, td.c-co { padding-left: 4px; }
+td.c-co { font-weight: 500; color: var(--text); }
+.num { text-align: right; white-space: nowrap; font-family: "Geist Mono", ui-monospace, Consolas, monospace; font-size: 13px; }
+td.num.ctc { color: var(--text); }
+th.num { font-family: inherit; }
+th.c-loc, td.c-loc { padding-left: 28px; }
+th.c-act, td.c-act { width: 44px; padding: 4px 0; text-align: right; }
+.th-btn { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 500; color: var(--subtle); border-radius: 2px; }
+.th-btn:hover { color: var(--text); }
+.check { display: inline-flex; width: 44px; height: 44px; align-items: center; justify-content: center; cursor: pointer; margin-left: -13px; }
+.check input { width: 17px; height: 17px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.co-btn { all: unset; cursor: pointer; border-radius: 2px; }
+.co-btn:hover { text-decoration: underline; text-underline-offset: 3px; }
+.co-btn:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.row .del { opacity: 0; }
+.row:hover .del, .row:focus-within .del { opacity: 1; }
+@media (hover: none) { .row .del { opacity: 1; } }
+
+.tag { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 6px; border: 1px solid transparent; font-size: 12.5px; font-weight: 500; white-space: nowrap; }
+.tag-lock { background: var(--lock-bg); border-color: var(--lock-border); color: var(--lock-text); }
+.tag-chill { background: var(--chill-bg); border-color: var(--chill-border); color: var(--chill-text); }
+.tag-dilemma { background: var(--dilemma-bg); border-color: var(--dilemma-border); color: var(--dilemma-text); }
+
+.empty { padding: 48px 24px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; border-bottom: 1px solid var(--row-line); }
+.empty.small { padding: 40px 24px; }
+.empty p { margin: 0; }
+.empty .title { font-weight: 500; color: var(--text); }
+.empty .body { color: var(--subtle); }
+.link-btn { all: unset; cursor: pointer; color: var(--text); text-decoration: underline; text-underline-offset: 3px; margin-top: 6px; }
+.footer { margin: 0; padding-top: 8px; font-size: 13px; color: var(--subtle); }
+
+dialog { width: min(600px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+dialog::backdrop { background: var(--backdrop); }
+dialog form { display: flex; flex-direction: column; gap: 20px; padding: 24px; }
+.dlg-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.dlg-head h2 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+.dlg-head .icon-btn { color: var(--subtle); }
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500; color: var(--text-2); }
+.field.full { grid-column: 1 / -1; }
+@media (max-width: 480px) { .fields { grid-template-columns: 1fr; } }
+fieldset { border: none; margin: 0; padding: 0; }
+legend { padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 500; color: var(--text-2); }
+.segs { display: flex; flex-wrap: wrap; gap: 8px; }
+.seg { flex: 1 1 auto; white-space: nowrap; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--border); background: var(--surface); border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--muted); padding: 8px 10px; }
+.seg:hover { border-color: var(--border-strong); color: var(--text); }
+.seg.on { box-shadow: inset 0 0 0 1px currentColor; }
+.seg.on-lock { background: var(--lock-bg); border-color: var(--lock-text); color: var(--lock-text); }
+.seg.on-chill { background: var(--chill-bg); border-color: var(--chill-text); color: var(--chill-text); }
+.seg.on-dilemma { background: var(--dilemma-bg); border-color: var(--dilemma-text); color: var(--dilemma-text); }
+.dot { width: 7px; height: 7px; border-radius: 2px; flex: none; }
+.dot-lock { background: var(--lock-dot); }
+.dot-chill { background: var(--chill-dot); }
+.dot-dilemma { background: var(--dilemma-dot); }
+.error { margin: -4px 0 0; font-size: 13px; color: var(--error); }
+.dlg-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding-top: 4px; }
+
+#toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+#toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="page">
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>Applications</h1>
+      <p id="summary"></p>
+    </div>
+    <div class="header-actions">
+      <button class="btn ghost" id="btnExport" title="Download a backup of all your data">Backup</button>
+      <button class="btn ghost" id="btnImport" title="Restore from a backup file">Restore</button>
+      <button class="btn primary" id="btnAdd">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        Add application
+      </button>
+      <input type="file" id="fileImport" accept=".json,application/json" hidden>
+    </div>
+  </header>
+
+  <div class="filters">
+    <nav class="tabs" id="tabs" aria-label="Filter by tag"></nav>
+    <div class="controls">
+      <label class="search">
+        <span class="sr">Search companies</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="color: var(--faint)"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input class="ctl" type="search" id="q" placeholder="Search companies or roles">
+      </label>
+      <label>
+        <span class="sr">Location</span>
+        <select class="ctl" id="loc" style="min-width: 160px"></select>
+      </label>
+      <label>
+        <span class="sr">Sort by</span>
+        <select class="ctl" id="sort" style="min-width: 180px">
+          <option value="recent-desc">Recently added</option>
+          <option value="ctc-desc">Highest CTC</option>
+          <option value="ctc-asc">Lowest CTC</option>
+          <option value="base-desc">Highest base</option>
+          <option value="base-asc">Lowest base</option>
+          <option value="company-asc">Company A–Z</option>
+          <option value="company-desc">Company Z–A</option>
+          <option value="role-asc">Role A–Z</option>
+          <option value="role-desc">Role Z–A</option>
+          <option value="location-asc">Location A–Z</option>
+          <option value="location-desc">Location Z–A</option>
+          <option value="tag-asc">Tag</option>
+          <option value="tag-desc">Tag, reversed</option>
+        </select>
+      </label>
+      <button class="btn ghost" id="btnReset" hidden>Reset</button>
+    </div>
+  </div>
+
+  <section class="sec pending" aria-labelledby="pending-h">
+    <div class="sec-head"><h2 id="pending-h">Test pending</h2><span class="count" id="pendingCount"></span></div>
+    <div class="table-box" id="pendingBox"></div>
+  </section>
+
+  <section class="sec done" aria-labelledby="done-h">
+    <div class="sec-head"><h2 id="done-h">Test completed</h2><span class="count" id="doneCount"></span></div>
+    <div class="table-box" id="doneBox"></div>
+    <p class="footer" id="footer"></p>
+  </section>
+
+</div>
+</div>
+
+<dialog id="dlg" aria-labelledby="dlgTitle">
+  <form id="form" novalidate>
+    <div class="dlg-head">
+      <h2 id="dlgTitle">New application</h2>
+      <button type="button" class="icon-btn" id="btnClose" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="fields">
+      <label class="field full">Company<input class="ctl" name="company" type="text" placeholder="Company name"></label>
+      <label class="field full">Role<input class="ctl" name="role" type="text" placeholder="e.g. SDE 1"></label>
+      <label class="field">CTC (LPA)<input class="ctl mono" name="ctc" type="number" min="0" step="0.1" placeholder="0.0"></label>
+      <label class="field">Base (LPA)<input class="ctl mono" name="base" type="number" min="0" step="0.1" placeholder="0.0"></label>
+      <label class="field full">Location<input class="ctl" name="location" type="text" placeholder="City"></label>
+    </div>
+    <fieldset>
+      <legend>Tag</legend>
+      <div class="segs" id="segs"></div>
+    </fieldset>
+    <p class="error" id="error" role="alert" hidden></p>
+    <div class="dlg-actions">
+      <button type="button" class="btn ghost" id="btnCancel">Cancel</button>
+      <button type="submit" class="btn primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast"></div>
+
+<script>
+const KEY = 'placement-tracker-v2';
+const OLD_KEY = 'placement-tracker-v1';
+const TAGS = [
+  { key: 'lock', label: 'Lock In' },
+  { key: 'chill', label: 'Low Key Chill' },
+  { key: 'dilemma', label: 'In my Dilemma Era' },
+];
+const TAG_ORDER = { lock: 0, chill: 1, dilemma: 2 };
+const SORT_COLS = [['company', 'Company', 'c-co'], ['role', 'Role', ''], ['ctc', 'CTC', 'num'], ['base', 'Base', 'num'], ['location', 'Location', 'c-loc'], ['tag', 'Tag', 'c-tag']];
+const ICON_TRASH = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
+
+let rows = load();
+const view = { query: '', tag: 'all', loc: 'all', sortKey: 'recent', sortDir: 'desc' };
+let editingId = null;
+let formTag = 'lock';
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const isBlank = n => n === null || n === undefined || n === '' || isNaN(n);
+const fmt = n => isBlank(n) ? '—' : (Math.round(Number(n) * 10) / 10).toFixed(1) + ' L';
+const newId = () => crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
+
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) { const s = JSON.parse(raw); if (Array.isArray(s.rows)) return s.rows; }
+    // Carry over companies from the previous version of this tracker
+    const old = localStorage.getItem(OLD_KEY);
+    if (old) {
+      const s = JSON.parse(old);
+      if (Array.isArray(s.apps)) return s.apps.map(a => ({
+        id: a.id || newId(), company: a.company || '', role: a.role || '',
+        ctc: isBlank(a.ctc) ? '' : Number(a.ctc), base: '', location: a.location || '',
+        tag: 'lock', testDone: ['Interview', 'Offer', 'Rejected'].includes(a.status), createdAt: a.createdAt || Date.now(),
+      }));
+    }
+  } catch (e) { /* fall through to empty state */ }
+  return [];
+}
+
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify({ rows })); }
+  catch (e) { toast('Could not save in this browser — use Backup to keep your data'); }
+}
+
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+// ---------- filtering & sorting ----------
+function visibleRows() {
+  const q = view.query.trim().toLowerCase();
+  const list = rows.map((r, i) => ({ r, i })).filter(({ r }) => {
+    if (view.tag !== 'all' && r.tag !== view.tag) return false;
+    if (view.loc !== 'all' && r.location !== view.loc) return false;
+    if (q && (r.company + ' ' + r.role).toLowerCase().indexOf(q) === -1) return false;
+    return true;
+  });
+  const key = view.sortKey, dir = view.sortDir === 'asc' ? 1 : -1;
+  list.sort((a, b) => {
+    if (key === 'recent') return (a.i - b.i) * dir;
+    if (key === 'ctc' || key === 'base') {
+      const x = isBlank(a.r[key]) ? null : Number(a.r[key]);
+      const y = isBlank(b.r[key]) ? null : Number(b.r[key]);
+      if (x === null && y === null) return 0;
+      if (x === null) return 1;
+      if (y === null) return -1;
+      return (x - y) * dir;
+    }
+    if (key === 'tag') return (TAG_ORDER[a.r.tag] - TAG_ORDER[b.r.tag]) * dir;
+    const x = String(a.r[key] || '').toLowerCase(), y = String(b.r[key] || '').toLowerCase();
+    if (!x && y) return 1;
+    if (x && !y) return -1;
+    return x.localeCompare(y) * dir;
+  });
+  return list.map(o => o.r);
+}
+
+// ---------- rendering ----------
+function render() {
+  const all = rows;
+  const list = visibleRows();
+  const pending = list.filter(r => !r.testDone);
+  const done = list.filter(r => r.testDone);
+  const q = view.query.trim();
+  const filtersOn = view.tag !== 'all' || view.loc !== 'all' || q !== '';
+  const anyPending = all.some(r => !r.testDone);
+  const anyDone = all.some(r => r.testDone);
+
+  $('#summary').textContent = all.length === 0
+    ? 'Nothing logged yet.'
+    : `${all.length} ${all.length === 1 ? 'company' : 'companies'} applied to this season`;
+
+  const counts = { all: all.length, lock: 0, chill: 0, dilemma: 0 };
+  all.forEach(r => { counts[r.tag] = (counts[r.tag] || 0) + 1; });
+  $('#tabs').innerHTML = [{ key: 'all', label: 'All' }, ...TAGS].map(t => {
+    const on = view.tag === t.key;
+    return `<button class="tab${on ? ' active' : ''}" data-tab="${t.key}" aria-pressed="${on}">${esc(t.label)}<span class="count">${counts[t.key] || 0}</span></button>`;
+  }).join('');
+
+  const locs = [...new Set(all.map(r => r.location).filter(Boolean))].sort();
+  if (view.loc !== 'all' && !locs.includes(view.loc)) view.loc = 'all';
+  $('#loc').innerHTML = '<option value="all">All locations</option>' + locs.map(l => `<option value="${esc(l)}">${esc(l)}</option>`).join('');
+  $('#loc').value = view.loc;
+  $('#sort').value = view.sortKey + '-' + view.sortDir;
+  $('#btnReset').hidden = !filtersOn;
+
+  $('#pendingCount').textContent = pending.length;
+  $('#doneCount').textContent = done.length;
+
+  let pendingEmpty = '';
+  if (!pending.length) {
+    const [title, body] = all.length === 0
+      ? ['No applications yet', 'Add your first application to start tracking.']
+      : filtersOn && anyPending
+        ? ['No matches', 'Try another search or reset the filters.']
+        : ['No pending tests', 'Every test so far is done.'];
+    pendingEmpty = `<div class="empty"><p class="title">${title}</p><p class="body">${body}</p>${all.length === 0 ? '<button class="link-btn" data-action="sample">Try with sample data</button>' : ''}</div>`;
+  }
+  $('#pendingBox').innerHTML = table(pending) + pendingEmpty;
+
+  const doneEmpty = done.length ? '' : `<div class="empty small"><p class="body">${filtersOn && anyDone ? 'No completed tests match these filters.' : 'Tick a company’s box once its test is over and it moves here.'}</p></div>`;
+  $('#doneBox').innerHTML = table(done) + doneEmpty;
+
+  $('#footer').textContent = `${list.length} of ${all.length} shown · amounts in lakhs per annum`;
+}
+
+function table(list) {
+  const arrow = k => view.sortKey === k ? (view.sortDir === 'asc' ? ' ↑' : ' ↓') : '';
+  const head = SORT_COLS.map(([k, label, cls]) =>
+    `<th class="${cls}"><button class="th-btn" data-sort="${k}">${label}<span aria-hidden="true">${arrow(k)}</span></button></th>`).join('');
+  const body = list.map(r => {
+    const t = TAGS.find(x => x.key === r.tag) || TAGS[0];
+    return `<tr class="row">
+      <td class="c-check"><label class="check"><input type="checkbox" data-toggle="${esc(r.id)}"${r.testDone ? ' checked' : ''} aria-label="${r.testDone ? 'Mark test not done for ' : 'Mark test done for '}${esc(r.company)}"></label></td>
+      <td class="c-co"><button class="co-btn" data-edit="${esc(r.id)}" title="Edit">${esc(r.company)}</button></td>
+      <td>${esc(r.role)}</td>
+      <td class="num ctc">${fmt(r.ctc)}</td>
+      <td class="num">${fmt(r.base)}</td>
+      <td class="c-loc">${esc(r.location) || '—'}</td>
+      <td><span class="tag tag-${t.key}">${esc(t.label)}</span></td>
+      <td class="c-act"><button class="icon-btn del" data-remove="${esc(r.id)}" aria-label="Remove ${esc(r.company)}">${ICON_TRASH}</button></td>
+    </tr>`;
+  }).join('');
+  return `<table><thead><tr><th class="c-check">Test</th>${head}<th class="c-act"><span class="sr">Actions</span></th></tr></thead><tbody>${body}</tbody></table>`;
+}
+
+// ---------- add / edit dialog ----------
+function renderSegs() {
+  $('#segs').innerHTML = TAGS.map(t => {
+    const on = formTag === t.key;
+    return `<button type="button" class="seg${on ? ' on on-' + t.key : ''}" data-seg="${t.key}" aria-pressed="${on}"><span class="dot dot-${t.key}"></span>${esc(t.label)}</button>`;
+  }).join('');
+}
+
+function openForm(id) {
+  editingId = id || null;
+  const f = $('#form');
+  const r = id ? rows.find(x => x.id === id) : { company: '', role: '', ctc: '', base: '', location: '', tag: 'lock' };
+  for (const k of ['company', 'role', 'ctc', 'base', 'location']) f[k].value = r[k] ?? '';
+  formTag = r.tag || 'lock';
+  $('#dlgTitle').textContent = id ? 'Edit application' : 'New application';
+  $('#error').hidden = true;
+  renderSegs();
+  $('#dlg').showModal();
+  f.company.focus();
+}
+
+$('#form').addEventListener('submit', e => {
+  e.preventDefault();
+  const f = e.target;
+  const company = f.company.value.trim(), role = f.role.value.trim();
+  if (!company || !role) { $('#error').textContent = 'Company and role are required.'; $('#error').hidden = false; return; }
+  const data = {
+    company, role,
+    ctc: f.ctc.value === '' ? '' : Number(f.ctc.value),
+    base: f.base.value === '' ? '' : Number(f.base.value),
+    location: f.location.value.trim(), tag: formTag,
+  };
+  if (editingId) {
+    Object.assign(rows.find(x => x.id === editingId), data);
+    toast('Saved');
+  } else {
+    rows.push({ id: newId(), ...data, testDone: false, createdAt: Date.now() });
+    Object.assign(view, { sortKey: 'recent', sortDir: 'desc' });
+    toast(`Added ${company}`);
+  }
+  save(); render();
+  $('#dlg').close();
+});
+$('#form').addEventListener('input', () => { $('#error').hidden = true; });
+$('#btnClose').onclick = $('#btnCancel').onclick = () => $('#dlg').close();
+
+// ---------- backup / restore ----------
+$('#btnExport').onclick = () => {
+  const url = URL.createObjectURL(new Blob([JSON.stringify({ rows }, null, 2)], { type: 'application/json' }));
+  const link = Object.assign(document.createElement('a'), { href: url, download: `placement-tracker-backup-${new Date().toISOString().slice(0, 10)}.json` });
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast('Backup downloaded');
+};
+$('#btnImport').onclick = () => $('#fileImport').click();
+$('#fileImport').onchange = async e => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    if (!Array.isArray(data.rows)) throw new Error('bad file');
+    if (!confirm(`Replace your current ${rows.length} applications with ${data.rows.length} from this backup?`)) return;
+    rows = data.rows;
+    save(); render(); toast('Backup restored');
+  } catch (err) { alert('That file is not a valid Placement Tracker backup.'); }
+};
+
+// ---------- sample data ----------
+function loadSample() {
+  rows = [
+    { company: 'Northwind Labs', role: 'SDE 1', ctc: 32, base: 20, location: 'Bengaluru', tag: 'lock' },
+    { company: 'Kestrel AI', role: 'ML Engineer', ctc: 28, base: 22, location: 'Hyderabad', tag: 'dilemma' },
+    { company: 'Orbit Payments', role: 'Associate Product Manager', ctc: 24, base: 18, location: 'Mumbai', tag: 'chill' },
+    { company: 'Bluefin Systems', role: 'Software Engineer', ctc: 45, base: 26, location: 'Bengaluru', tag: 'lock', testDone: true },
+    { company: 'Acme Analytics', role: 'Data Analyst', ctc: 14, base: 12, location: 'Gurugram', tag: 'chill', testDone: true },
+    { company: 'Lattice Robotics', role: 'Embedded SDE', ctc: 20, base: 16, location: 'Pune', tag: 'dilemma' },
+  ].map((r, i) => ({ id: 'sample-' + i, testDone: false, createdAt: Date.now(), ...r }));
+  save(); render(); toast('Sample data loaded — delete these when you start');
+}
+
+// ---------- wiring ----------
+$('#btnAdd').onclick = () => openForm();
+$('#q').addEventListener('input', e => { view.query = e.target.value; render(); });
+$('#loc').addEventListener('change', e => { view.loc = e.target.value; render(); });
+$('#sort').addEventListener('change', e => { [view.sortKey, view.sortDir] = e.target.value.split('-'); render(); });
+$('#btnReset').onclick = () => { Object.assign(view, { query: '', tag: 'all', loc: 'all' }); $('#q').value = ''; render(); };
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-tab],[data-sort],[data-edit],[data-remove],[data-seg],[data-action]');
+  if (!el) return;
+  const d = el.dataset;
+  if (d.tab) { view.tag = d.tab; render(); }
+  else if (d.sort) {
+    if (view.sortKey === d.sort) view.sortDir = view.sortDir === 'asc' ? 'desc' : 'asc';
+    else Object.assign(view, { sortKey: d.sort, sortDir: d.sort === 'ctc' || d.sort === 'base' ? 'desc' : 'asc' });
+    render();
+  }
+  else if (d.edit) openForm(d.edit);
+  else if (d.remove) {
+    const r = rows.find(x => x.id === d.remove);
+    if (r && confirm(`Remove ${r.company}? This can't be undone.`)) { rows = rows.filter(x => x.id !== d.remove); save(); render(); toast('Removed'); }
+  }
+  else if (d.seg) { formTag = d.seg; renderSegs(); }
+  else if (d.action === 'sample') loadSample();
+});
+
+document.addEventListener('change', e => {
+  const id = e.target.dataset?.toggle;
+  if (!id) return;
+  const r = rows.find(x => x.id === id);
+  r.testDone = e.target.checked;
+  save(); render();
+  toast(r.testDone ? `${r.company} → Test completed` : `${r.company} → Test pending`);
+});
+
+render();
+</script>
+</body>
+</html>
